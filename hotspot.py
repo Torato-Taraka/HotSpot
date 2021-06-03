@@ -45,6 +45,7 @@ class HotSpot():
         # 参数初始化，分别代表种类数，最大CH，最小DBI
         n_clusters, ch_max, db_min = 0, 0.0, 100
         similarity = self.vector
+        # print(similarity.shape)
 
         for num in range(10, 20):
             # 聚类
@@ -110,7 +111,7 @@ class HotSpot():
         summary = []
         for i in range(self.n_clusters):
             # 获取同类文章的标题
-            data = self.data.loc[self.data.Cluster == i].Headline + '.'
+            data = self.data.loc[self.data.Cluster == i].Headline
             if data.shape[0] > 1:
                 # 文章数足够多则拼接起来
                 data = ' '.join(x for x in list(data))

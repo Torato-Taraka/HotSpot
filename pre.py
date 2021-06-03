@@ -17,6 +17,7 @@ import wget
 from gensim.models import Word2Vec
 # dataframe中的list转list
 from ast import literal_eval
+import sys
 
 def load_json_data_from_dir(dirname):
     """
@@ -38,29 +39,41 @@ def load_json_data_from_dir(dirname):
     # 遍历文档
     for root, dirs, files in os.walk(dirname):
         for file in files:
-            # 获取文件名
-            filename = os.path.splitext(file)[0]
-            # 读取文件
-            content = json.load(open(root + '/' + file, 'r', encoding = 'utf-8-sig'))
-            # 文件名添加到文件中，方便后续生成中间件
-            content['FileName'] = filename
-            # 文本统一编码
-            content['Text'] = unicodedata.normalize('NFKC', content['Text'])
-            # 中英文标点切换
-            table = {ord(f):ord(t) for f,t in zip('，、。！？【】（）“”‘’',
-                                                  ',,.!?[]()""\'\'')}
-            content['Text'] = content['Text'].translate(table)
-            # 文本全小写
-            content['Text'] = content['Text'].lower()
-            # 将句子隔开
-            content['Text'] = content['Text'].replace('.', '. ')
-            # 去除换行符
-            content['Text'] = content['Text'].replace(' - ', ' ')
-            # 标题统一编码
-            content['Headline'] = unicodedata.normalize('NFKC', content['Headline'])
-            # 去除干扰词
-            content['Headline'] = content['Headline'].replace(' – Manila Bulletin', '')
-            text.append(content)
+            try:
+                # 获取文件名
+                filename = os.path.splitext(file)[0]\
+                # 读取文件
+                content = json.load(open(root + '/' + file, 'r', encoding = 'utf-8-sig'))
+                # 去除无效文件
+                if content['Text'] == '' or content['Headline'] == '':
+                    continue
+                # 文件名添加到文件中，方便后续生成中间件
+                content['FileName'] = filename
+                # 文本统一编码
+                content['Text'] = unicodedata.normalize('NFKC', content['Text'])
+                content['Text'] = re.sub(u"[\u4e00-\u9fa5]", "", content['Text'])
+                # 中英文标点切换
+                table = {ord(f):ord(t) for f,t in zip('，、。！？【】（）“”‘’',
+                                                      ',,.!?[]()""\'\'')}
+                content['Text'] = content['Text'].translate(table)
+                # 文本全小写
+                content['Text'] = content['Text'].lower()
+                # 将句子隔开
+                content['Text'] = content['Text'].replace('.', '. ')
+                # 去除换行符
+                content['Text'] = content['Text'].replace(' - ', ' ')
+                # 标题统一编码
+                content['Headline'] = unicodedata.normalize('NFKC', content['Headline'])
+                content['Headline'] = re.sub(u"[\u4e00-\u9fa5]", "", content['Headline'])
+                # 去除报刊标记
+                split_punc = [' -', ' –', ' |']
+                for punc in split_punc:
+                    content['Headline'] = content['Headline'].split(punc)[0]
+                    if content['Headline'][-1] != '.':
+                        content['Headline'] += '.'
+                text.append(content)
+            except:
+                continue
     # 讲读取的数据放入dataframe，去除不必要的信息
     data = pd.DataFrame(text)
     drop_list = ['Type', 'Section', 'Writers', 'MainKeyWord', 'AdditionalKeyWord']
@@ -255,18 +268,23 @@ def get_doc_vector(words, glove, alpha=0.2):
         print('saving model...')
     
     print('generating vectors...')
+    stopwords = open('stopwords.txt', 'r').read().split('\n')
     doc_vector = []
     for doc in words:
-        vector = [0.0 for _ in range(300)]
+        vector = np.array([0.0 for _ in range(300)])
+        word_count = 0
         for word in doc:
-            if word not in glove:
-                # glove里没有，则直接用训练出的word2vec
-                vector += model.wv[word]
-            else:
-                # glove里有，则与本地vec以一定比例融合
-                vector += model.wv[word] * alpha + glove[word] * (1 - alpha)
+            if word not in stopwords:
+                if word not in glove:
+                    # glove里没有，则直接用训练出的word2vec
+                    vector += model.wv[word]
+                    word_count += 1
+                else:
+                    # glove里有，则与本地vec以一定比例融合
+                    vector += model.wv[word] * alpha + glove[word] * (1 - alpha)
+                    word_count += 1
         # 求平均
-        vector /= len(doc)
+        vector /= word_count
         doc_vector.append(vector)
         
     return doc_vector
@@ -404,12 +422,13 @@ def build_topic(data, n_clusters, today, hotscore):
     for i in range(n_clusters):
         # 获取统一聚类下的数据
         chosen_data = data.loc[data.Cluster == i]
+        print(chosen_data.Summary)
         # 生成detail
         detail = 'Related news:'
         for j in range(chosen_data.shape[0]):
             # 合并headline和url两项
-            detail += '\nHeadline: ' + chosen_data.iloc[j].Headline + \
-            '\nurl_link: ' + chosen_data.iloc[j].URL
+            detail += '<br><a href = "' + chosen_data.iloc[j].URL + \
+            '" target="_black">Headline: ' + chosen_data.iloc[j].Headline + '</a>'
         # 生成词云
         keywords_cloud = build_keywords_cloud(chosen_data)
         # 转换成json格式

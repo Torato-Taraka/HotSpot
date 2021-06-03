@@ -42,7 +42,7 @@ def json_pre_process(directory, glove):
 
 if __name__ == '__main__':
     print('loading glove...')
-    glove = pre.load_glove('glove.840B.300d.txt')
+    #glove = pre.load_glove('glove.840B.300d.txt')
     print('glove ready...')
     
     news_path = 'news/'
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         if os.path.exists(directory):
             processed_data, vector = json_pre_process(directory, glove)
             processed_data['Csvname'] = csv
-            processed_data.to_csv(csv, index=False)
+            processed_data.to_csv(csv, index=False, encoding='utf-8')
             np.savetxt(txt, vector, fmt="%f")
             print('csv and txt file building...')
             if data.empty:
@@ -89,11 +89,14 @@ if __name__ == '__main__':
                 doc_vector = np.vstack((doc_vector, vector))
             else:
                 doc_vector = vector
+            print('data size: ', data.shape)
+                
     
     print('=' * 80)
     print('preparation finished')
     print('the first of data:', data.iloc[0])
-    print('doc_vector size:', doc_vector[0].shape)
+    print('the data info:', data.info())
+    print('doc_vector size:', doc_vector.shape)
     print('=' * 80)
     
     hotspot = HotSpot(data, doc_vector)  
@@ -110,7 +113,7 @@ if __name__ == '__main__':
             data.loc[data.Cluster == i, 'Summary'] = hotspot.summary[i]
     else:
         for i in range(hotspot.n_clusters):
-            temp = list(data.Summary.values)
+            temp = list(data.loc[data.Cluster == i].Summary.values)
             #print(set(temp))
             most_summary = max(set(temp), key=temp.count)
             percentage = data.loc[data.Summary == most_summary].shape[0] / data.shape[0]
@@ -134,7 +137,7 @@ if __name__ == '__main__':
     for i in set(list(data.Csvname)):
         data_to_store = data.loc[data.Csvname == i].drop(columns=['Cluster'])
         csv = data_to_store.iloc[0].Csvname
-        data_to_store.to_csv(csv, index=False)
+        data_to_store.to_csv(csv, index=False, encoding='utf-8')
                 
     print('=' * 80)
     print('process finished')

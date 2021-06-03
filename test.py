@@ -14,6 +14,8 @@ from sumy.summarizers.lsa import LsaSummarizer as Summarizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import SpectralClustering
 import datetime
+import unicodedata
+import re
 import json
 """
 values = [['4.1', '0', '1'], ['5', '2', '3']]
@@ -51,7 +53,7 @@ print(model['china'])
 """
 
 """
-text, data = pre.load_json_data_from_dir('news/2021-5-24')
+text, data = pre.load_json_data_from_dir('test')
 print('this is the text:')
 print(pre.json_print(text[0]))
 print('\nthis is the data:')
@@ -59,12 +61,20 @@ print(data)
 print(data.info())
 """
 """
-data = pd.read_csv('data/2021-5-24.csv')
-vector = np.loadtxt('data/2021-5-24.txt', dtype=np.float32)
-today = datetime.datetime.now()
+data = pd.read_csv('data/2021-5-28.csv')
+vector = np.loadtxt('data/2021-5-28.txt', dtype=np.float32)
+data.dropna(axis=0, inplace=True)
 #data['Summary'] = 0
 print(data.info())
+"""
 
+data = "asdjflajsdlf的空间里加速度fkdjlsjdklf"
+print(data)
+
+data = re.sub(u"[\u4e00-\u9fa5]", "", data)
+print(data)
+
+"""
 keywords = pre.dataframe_list_to_list(data.Keywords)
 keywords = [x for y in keywords for x in y]
 print(keywords)
@@ -88,7 +98,7 @@ for key, value in keywords_dict.items():
     keywords_cloud[key] = score
 keywords_cloud = list(zip(keywords_cloud.keys(), keywords_cloud.values()))
 print(keywords_cloud)
-"""         
+    """    
 """
 a = {'x': 0.1}
 a.setdefault('y', []).append(0.6)
@@ -103,10 +113,10 @@ print(data.loc[:, ['Headline', 'URL']])
 hotscore = [90.123]
 pre.build_topic(data, 1, today, hotscore)
 """
-
+"""
 x = json.load(open('topic/2021-05-26-0.json', 'r'))
 pre.json_print(x)
-
+"""
 """
 similarity = cosine_similarity(vector)
 print(similarity)
@@ -127,4 +137,9 @@ x = max(set(list(data.Source.values)), key = list(data.Source.values).count)
 #hotspot = HotSpot(data, vector)
 print()
 #print(hotspot.summary)
+"""
+"""
+stopwords = open('stopwords.txt', 'r').read().split('\n')
+print(type(stopwords))
+print('my' in stopwords)
 """
